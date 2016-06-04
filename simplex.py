@@ -200,6 +200,102 @@ def enterbasis(tabl, row, col, latex=False, frac=True, decimals=-1, verbose=True
         return tofloat(tabl, decimals=decimals)
     return tabl
 
+def getdual(tabl):
+    #height = tabl.T[0].size
+    objval = tabl[-1][-1]
+    b = tabl.T[-1][0:-1]
+    c = tabl[-1][0:-2] #cost/optimisation function
+    M = tabl[0:-1,0:-2]
+
+    # add -z
+    M = M.T
+    #get coeffient  matrix, add slack vars
+    M = np.hstack([M, np.identity(M.T[0].size)])
+    M = np.hstack([M, np.zeros(M.T[0].size).reshape((M.T[0].size, -1))])
+    # add new b from c
+    M = np.hstack([M, c.reshape((-1,1))])
+    # add new c from b
+    z = np.zeros(M[0].size)
+    for i in range(0,b.size):
+        z[i]=b[i]
+    z[-2] = 1
+    z[-1] = objval
+    return np.vstack([M,z])
+    
+    #M = np.hstack([M,c.reshape((-1,1))])
+    #MBC = np.vstack([MB, c])
+    #np.vstack(MB, 
+
+#get the dual of a problem
+
+##eksempel task 5 exam 2014
+#equalities = ["<=", "<=", "="]
+#lastConst = ["inR","inR",">=0",">=0"]
+#A = np.array([[1,2,1,1,5], [3,1,-1,0,8], [0,1,1,1,1], [6,1,-1,-1,0]])
+
+def printdual(M,E,LC, obj="max"):
+	"""
+	:M: Matrix
+	:E: equalities pr constraint
+	:LC: Variable constraints
+	"""
+	M = M.T
+	for i in range(0,len(M)):
+		text = ""
+		counter = 1
+		for j in range (0,len(M[i])):
+			if j == len(M[i])-2 and i == len(M)-1: #when reaching the last row and column do this
+					text += (str(M[i][j])+"y_"+str(counter+j))
+					text = "objfunc: " + text
+					for k in range(0,len(M[i])-1):
+						print lastCon(E,k, obj)
+					break # just so i wont run til end
+			if j == len(M[i])-1:
+				text += addEquality(M,LC,i,j, obj)
+			else :
+
+				if j == len(M[i])-2:
+					text += (str(M[i][j])+"y_"+str(counter+j))
+				else :
+					text += (str(M[i][j])+"y_"+str(counter+j)+"+")
+		print text
+
+def addEquality(M,LC,i,j, obj):
+	if obj == "max":
+		if LC[i] == "<=0" or LC[i] == "=<0":
+			return " "+ "=<" + " " + str(M[i][j])
+		if LC[i] == "=>0" or LC[i] == ">=0":
+			return " "+ "=>" +" " + str(M[i][j])
+		if LC[i] == "inR":
+			return " "+ "=" +" " + str(M[i][j])
+	elif obj == "min":
+		if LC[i] == "<=0" or LC[i] == "=<0":
+			return " "+ "=>" + " " + str(M[i][j])
+		if LC[i] == "=>0" or LC[i] == ">=0":
+			return " "+ "=<" +" " + str(M[i][j])
+		if LC[i] == "inR":
+			return " "+ "=" +" " + str(M[i][j])
+
+
+def lastCon(E,i, obj):
+	#print E, " and ", i
+	if obj == "max":
+		if E[i] == "<=" or E[i] == "=<":
+			return "y" + str(i+1) + " => 0"
+		elif E[i] == ">=" or E[i] == "=>":
+			return "y" + str(i+1) + " =< 0"
+		elif E[i] == "=":
+			return "y" + str(i+1) + " in R"
+	elif obj == "min":
+		if E[i] == "<=" or E[i] == "=<":
+			return "y" + str(i+1) + " =< 0"
+		elif E[i] == ">=" or E[i] == "=>":
+			return "y" + str(i+1) + " => 0"
+		elif E[i] == "=":
+			return "y" + str(i+1) + " in R"
+
+
+
 
 #for row operations, do f.ex.:
 # A[i,:]=A[i,:]+A[k,:]
@@ -225,4 +321,3 @@ def enterbasis(tabl, row, col, latex=False, frac=True, decimals=-1, verbose=True
 #T4b[-2,:]=T4b[2,:]+T4b[-2,:]
 #tableau(T4b)
 #use the dualsimplex to find optimal solution
-#tableau(dualsimplex(T4b))
