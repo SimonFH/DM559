@@ -390,6 +390,7 @@ def pad_to_square(a, pad_value=0):
 
 def printLHS(res,b):
 	counter = 0
+	print res
 	rank = np.linalg.matrix_rank(res)
 	res = res[:rank,rank:]
 	res = res*-1
@@ -420,9 +421,16 @@ def printRHS(res,b):
 		print text
 
 def nonSingularScalarForm(M):
-	res = np.array(sy.Matrix(tofrac(M)).rref()[0])
+	res, bres = np.array(Matrix(tofrac(M)).rref())
 	b = res.T[-1]
-	res = pad_to_square(np.delete(res,-1,axis=1))
+	res = np.delete(res,-1,axis=1)
+	iden = np.identity(res.shape[0])
+	
+	if np.array_equal(res,iden) or np.array_equiv(res,iden):
+		print "square matrix, vector x ="
+		print bres 
+		return	
+	res = pad_to_square(res)
 
 	while(len(b)!= len(res[0])):
 		b = np.append(b,0)
