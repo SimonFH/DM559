@@ -1,4 +1,5 @@
 import numpy as np
+from sympy import *
 import sys
 
 from fractions import Fraction as f
@@ -200,6 +201,93 @@ def enterbasis(tabl, row, col, latex=False, frac=True, decimals=-1, verbose=True
         return tofloat(tabl, decimals=decimals)
     return tabl
 
+#printvalues example:
+#A = np.array([ 1, 1, -1 , 0 , 1 , -1 , 0 , 1,2 , 0 , 3 , 1 , -1 , 2 , 0 , 3,-3 , 0 ,-2 , 0 , -1 , -1, 1 , -9]).reshape(3,-1)
+#s.printvalues(A)
+#Solution: feasable and optimal.
+#x_1 = 0
+#x_2 = 1
+#x_3 = 0
+#x_4 = 3
+#x_5 = 0
+#objval = 9
+#y_1 = 1
+#y_2 = 1
+def printvalues(tabl):
+	""" Call this on an optimal tableau to print the value of the variables and objective function
+	:tabl: optimal tableau
+	"""
+	objval = tabl[-1][-1]
+	b = tabl.T[-1][0:-1]
+	c = tabl[-1][0:-2] #cost/optimisation function
+	M = tabl[0:-1,0:-2]
+	MT = M.T
+	n = M[0].size-MT[0].size
+	text = ""
+	if np.any(b < 0):
+		text += "Solution: not feasible and "
+	else:
+		text += "Solution: feasable and "
+	if np.any(c > 0):
+		text += "not optimal.\n"
+	else:
+		text += "optimal.\n"
+
+	for i in range(0,n+1):
+		t = list(MT[i])
+		#if column/variable in basis, print corresponding b value
+		if t.count(1) == 1 and t.count(0) == len(t)-1:
+			j = t.index(1)
+			text += "x_"+str(i+1)+" = "+str(b[j])+"\n"
+		else:
+			text += "x_"+str(i+1)+" = 0\n"
+	text += "objval = "+str(-objval)+"\n"
+
+	j=1
+	for i in range(n, M[0].size):
+		text += "y_"+str(j)+" = "+str(-c[i])+"\n"
+		j += 1
+	print(text)
+	return
+
+def variablesinbasis(A):
+	""" Get the indices of the variables in basis
+	:A: coefficient matrix
+	:Returns: list of indices of variables in basis
+	"""
+	AT = A.T
+	inbasis = []
+	for i in range(0, A.shape[1]):
+		t = list(AT[i])
+		if t.count(1) == 1 and t.count(0) == len(t)-1:
+			inbasis.append(i)
+	return inbasis
+
+
+def revsimplex(tabl, basis):
+	""" Returns reduced costs and dual variable values only
+	:tabl: tableau
+	:basis: list of variables in basis
+	"""
+	A = tabl[0:-1,0:-2]
+	c = tabl[-1][0:-2] #cost/optimisation function
+	m,n = A.shape
+	non_basis = []
+	for i in range(n):
+		if i not in basis:
+			non_basis.append(i)
+	A_B, A_N = (A[:,basis], A[:,non_basis])
+	c_B, c_N = (c[basis], c[non_basis])
+	y = np.linalg.solve(A_B,c_B)
+	RES = c_N-(y.T.dot(A_N))
+	for i in range(0, y.size):
+		print("y_"+str(i+1)+" = "+str(y[i]))
+	print "Reduces cost:"
+	for i,v in zip(non_basis, RES):
+		print("x_"+str(i)+" = "+str(v))
+	return y, RES
+
+
 def getdual(tabl):
     #height = tabl.T[0].size
     objval = tabl[-1][-1]
@@ -294,6 +382,62 @@ def lastCon(E,i, obj):
 		elif E[i] == "=":
 			return "y" + str(i+1) + " in R"
 
+def pad_to_square(a, pad_value=0):
+  m = a.reshape((a.shape[0], -1))
+  padded = pad_value * np.ones(2 * [max(m.shape)], dtype=m.dtype)
+  padded[0:m.shape[0], 0:m.shape[1]] = m
+  return padded
+
+def printLHS(res,b):
+	counter = 0
+	rank = np.linalg.matrix_rank(res)
+	res = res[:rank,rank:]
+	res = res*-1
+	res = np.vstack([res,np.identity(res.shape[1])])
+	text = ""
+	for i in range(0,len(res.T)):
+		if (i==0):
+			text += "a"+str(i+1)+" * " + str(res.T[i])
+		else:
+			text += " + a"+str(i+1)+" * " + str(res.T[i])
+	print b,"+", text
+
+def printRHS(res,b):
+	counter = 0
+	for i in range(0,len(res)):
+		text = ""
+		curA = [elem for elem in res[i] if elem != 0 and elem !=1]
+		for j in range(0,len(curA)):
+			if(j == 0):
+				text += "x"+str(i+1)+" = "+str(b[i])+"-"+str(curA[j])+"a_"+str(j+1)+"-"
+			if(j == len(curA)-1): #reaching last
+				text += str(curA[j])+"a_"+str(j+1)
+			else:
+				text += str(curA[j])+"a_"+str(j+1)+"-"
+		if curA == []:
+			text += "x"+str(i+1)+ " = a_"+str(counter+1)
+			counter += 1
+		print text
+
+def nonSingularScalarForm(M):
+	res = np.array(sy.Matrix(tofrac(M)).rref()[0])
+	b = res.T[-1]
+	res = pad_to_square(np.delete(res,-1,axis=1))
+
+	while(len(b)!= len(res[0])):
+		b = np.append(b,0)
+
+	print "x: "
+	print "RHS:"
+	printRHS(res,b)
+	print "LHS:"
+	printLHS(res,b)
+	return res
+
+#nonSingularScalarForm(A)
+
+def getRank(M):
+	print np.linalg.matrix_rank(np.delete(A,-1,axis=1))
 
 
 
