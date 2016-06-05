@@ -462,6 +462,13 @@ def lin(M):
 	print "Linearly independent columns:"
 	print R.reshape((rank,-1)).T
 
+def geteigen(A):
+	""" Returns a tuple of eigenvalues and eigenvectors
+	:A: matrix
+	:returns evals, evecs
+	"""
+	evals, evecs = np.linalg.eig(A)
+	return evals, np.array([ev/max(ev) for ev in evecs.T]).T
 
 
 #for row operations, do f.ex.:
