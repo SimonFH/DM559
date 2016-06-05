@@ -437,7 +437,22 @@ def nonSingularScalarForm(M):
 #nonSingularScalarForm(A)
 
 def getRank(M):
-	print np.linalg.matrix_rank(np.delete(A,-1,axis=1))
+	# without b vector
+	return np.linalg.matrix_rank(np.delete(M,-1,axis=1))
+
+def lin(M):
+  #set given by linear span of the column of the coefficient matrix A, from rref, since rank is 2, 
+  #hence the space of solutions is spanned by two vectors, column of the leading ondes ing the rref
+  #lin(A)=lin({v_1,..v_n})
+	res = np.array(Matrix(tofrac(M)).rref()[0])
+	#rank = np.linalg.matrix_rank(res)
+	rank = getRank(M)
+	K = variablesinbasis(res)
+	R = np.array([])
+	for x in K:
+		R = np.append(R,M.T[x])
+	print "Linearly independent columns:"
+	print R.reshape((rank,-1)).T
 
 
 
