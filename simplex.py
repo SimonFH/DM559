@@ -189,10 +189,8 @@ def enterbasis(tabl, row, col, latex=False, frac=True, decimals=-1, verbose=True
             print "R",i,"= R",row,"-",float(tabl[i][col]),"*R",row 
             tabl[i] = tabl[i]-(float(tabl[i][col])*basisrow)            
             if(verbose and frac):
-                print "*** HERE ***"
                 tableau(tofrac(tabl))
             elif(verbose and decimals != -1):
-                print "*** HERE2 ***"
                 tableau(tofloat(tabl, decimals=decimals))
             
     if latex:
@@ -510,6 +508,9 @@ def autosimplex(tabl_orig, verbose=False, frac=True, decimals=-1):
 				print "PHASE 2: not optimal, using simplex"
 			tabl = simplex(tabl, verbose=verbose, frac=frac, decimals=decimals)
 		else: break
+		if tabl == None:
+			print "probably unbounded, or ??? :( "
+			break
 		b = tabl.T[-1][0:-1]
 		c = tabl[-1][0:-2] #cost/optimisation function
 	#printvalues(tabl)
@@ -518,17 +519,190 @@ def autosimplex(tabl_orig, verbose=False, frac=True, decimals=-1):
 
 
 
+
+
+##example of complementary slackness check:
+#DK, yvec, deq, dlc, obj = s.complslacknesscheck(K,[3,-1,0,2], ["<=","<=","="], ["inR","inR",">=0",">=0"], obj="max")
+## We then check if the values hold in the dual also, by calling again on the result:
+#s.complsclacknesscheck(DK,yvec,deq,dlc,obj)
+## in this case the dual is infeasible,indicating that the primal is unbounded.
+
+def complslacknesscheck(A,xvec,eq,lc, obj="max"):
+	""" Check if given x-values makes solution feasible
+	:A: problem without slackvariables
+	:xvec: x values as vector
+	:eq: equalities for constraints
+	:lc: variable constraints
+	"""
+	
+	objval = A[-1][-1]
+	b = A.T[-1][0:-1] #primal b
+	c = A[-1][0:-1] #cost/optimisation function
+	M = A[0:-1,:-1] # primal coefficient matrix
+	DM = M.T
+	
+	M1 = M.dot(xvec)
+	print "constraints:"
+	for x,e,rhs in zip(M1,eq,b):
+		text = str(x)+e+str(rhs)+" is "
+		if e == ">=" or e == "=>":
+			if x >= rhs: 
+				text += "OK"
+				print text
+				continue
+		elif e == "<=" or e == "=<":
+			if x <= rhs:
+				text += "OK"
+				print text
+				continue
+		elif e == "=" or e == "==":
+			if x == rhs:
+				text += "OK"
+				print text
+				continue
+		text += "NOT OK!   <---- infeasible"
+		print text
+	
+	print ""
+	for i, x,con in zip(range(1,len(xvec)+1),xvec, lc): 
+		if con == ">=0" or con == "=>":
+			if x>=0:
+				print "x_"+str(i)+": ",x,con, " OK"
+			else:
+				print "x_"+str(i)+": ",  x,con, "NOT  OK <-----"
+		elif con == "<=0" or con == "=<0":
+			if x<=0:
+				print "x_"+str(i)+": ",x,con, " OK"
+			else:
+				print "x_"+str(i)+": ",  x,con, "NOT  OK <-----"
+		elif con == "inR":
+				print "x_"+str(i)+": ",x,con, " OK"
+	print ""
+		
+
+	#for i,m,v in zip(np.array(range(1, M1.size+1)), M1,b):
+	#	print "x_"+str(i)+" = "+str(m-v)
+
+	print "The complementary slackness conditions are:"
+
+	#y part
+	for i,row in zip(range(1, DM.shape[0]+1), DM):
+		text =  "y_"+str(i)+" * ( "
+		res = ""
+		res_val = 0
+		for j,x,v in zip(range(1,len(xvec)+1),xvec,row):
+			if v < 0:
+				text += str(v)+"x_"+str(j)+" "
+			else:
+				text += "+"+str(v)+"x_"+str(j)+" "
+			if v!=0 and x!=0:
+				res_val += v*x
+				
+		
+		text += ") = 0"
+		text +=" = "+str(res_val)
+		if res_val == 0:
+			text += "  ==> "+"y_"+str(i)+" = 0"
+		print text
+	print ""
+		
+	
+	#x part
+	basis = []
+	for i, x,row,v in zip(range(1,len(xvec)+1),xvec, DM, c):
+		print "x_"+str(i)+":"
+		text = str(x)+" * ( " 
+		for j,q in zip(range(1,row.size+1),row):
+			if q < 0:
+				text += str(q)+"y_"+str(j)+" "
+			else:
+				text += "+"+str(q)+"y_"+str(j)+" "
+			# result
+		if (-v < 0):
+			text += str(-v)+" ) = 0"
+		else:
+			text += "+"+str(-v)+" ) = 0"
+
+		#print text
+
+		text += " <=> "
+		if x != 0:
+			basis.append(i-1)
+			for j,q in zip(range(1,row.size+1),row):
+				if q < 0:
+					text += str(q)+"y_"+str(j)+" "
+				elif q == 0:
+					text = text
+				else:
+					text += "+"+str(q)+"y_"+str(j)+" "
+			
+			text += "= "+str(v)
+		else:
+			text += "0"
+		
+		print text
+		print ""
+	yvec = np.array(Matrix(A.T[basis]).rref()[0][:,-1]).reshape(1,-1)[0]
+	#yvec = np.array(yvec).reshape(1,-1)
+
+	for i,y in zip(range(1,len(yvec)+1),yvec):
+		print "y_"+str(i)+" = "+str(y)
+
+	deq, dlc, obj = getdualconstraints(eq,lc, obj)
+	return A.T, yvec, deq, dlc, obj 
+
+
+def getdualconstraints(eq,lc, obj="max"):
+	dlc = []
+	deq	= []
+	for e in eq:
+		if obj=="max":
+			if e == "<=" or e == "=<":
+				dlc.append(">=0")
+			elif e == ">=" or e == "=>":
+				dlc.append("<=0")
+			elif e== "=":
+				dlc.append("inR")
+		elif obj=="min":
+			if e == "<=" or e == "=<":
+				dlc.append("<=0")
+			elif e == ">=" or e == "=>":
+				dlc.append(">=0")
+			elif e== "=":
+				dlc.append("inR")
+	
+	for c in lc:
+		if obj=="max":
+			if c == "<=0" or c == "=<0":
+				deq.append("<=")
+			elif c == ">=0" or c == "=>0":
+				deq.append(">=")
+			elif c == "inR":
+				deq.append("=")
+		elif obj=="min":		
+			if c == "<=0" or c == "=<0":
+				deq.append(">=")
+        	elif c == ">=0" or c == "=>0":
+        		deq.append("<=")
+        	elif c == "inR":
+        		deq.append("=")
+
+	if obj=="max":
+		return deq, dlc, "min"
+	else:
+		return deq, dlc, "max"
+
+
+
 #for row operations, do f.ex.:
 # A[i,:]=A[i,:]+A[k,:]
 # or explicitly
 # A[0,:]=A[0,:]+A[3,:]
-
-
 ## Row operations and dual simplex example:
 #T4 = np.array([[ 1.   ,  0.   ,  0.05 ,  0.25 ,  0.   ,  0.   ,  0.   ,  0.   ,
-#         1.5  ],
-#       [ 0.   ,  0.   , -0.075,  0.125,  0.   ,  1.   ,  0.   ,  0.   ,
-#         0.25 ],
+	#         1.5  ],
+	#       [ 0.   ,  0.   , -0.075,  0.125,  0.   ,  1.   ,  0.   ,  0.   ,
+	#         0.25 ],
 #       [ 0.   ,  1.   ,  0.075, -0.125,  0.   ,  0.   ,  0.   ,  0.   ,
 #         1.75 ],
 #       [ 0.   ,  0.   ,  0.275, -0.125,  1.   ,  0.   ,  0.   ,  0.   ,
@@ -541,5 +715,5 @@ def autosimplex(tabl_orig, verbose=False, frac=True, decimals=-1):
 #T4b = T4
 #T4b[-2,:]=T4b[2,:]+T4b[-2,:]
 #tableau(T4b)
-#use the dualsimplex to find optimal solution
-#
+#use simplex to find optimal solution
+#tableau(autosimplex(T4b))
