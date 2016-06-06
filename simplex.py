@@ -107,14 +107,15 @@ def simplex(tabl, latex=False, frac=True, decimals=-1, verbose=True):
     pivot_col = -1
     pivot_value = sys.maxint
     
-    height = tabl.T[0].size
-    c = tabl[height-1][0:-2] #cost/optimisation function
+    #height = tabl.T[0].size
+    c = tabl[-1,:-2] #cost/optimisation function
 
+    #print c
     for col in range(0,tabl[0].size-2):
         if(c[col] > 0):
             r,v = findpivot(tabl, col)
             if v < pivot_value:
-                v = pivot_value
+                pivot_value = v
                 pivot_col = col
                 pivot_row = r
 
@@ -122,19 +123,19 @@ def simplex(tabl, latex=False, frac=True, decimals=-1, verbose=True):
         print "couldnt find pivot element"
         return
 
-    print "(largest increase?) pivot, i: ",pivot_row," j: ",pivot_col
+    print "(largest increase?) pivot, (i: ",pivot_row," j: ",pivot_col, ") = ",pivot_value
     return enterbasis(tabl, pivot_row, pivot_col, latex=latex, frac=frac, decimals=decimals, verbose=verbose)
 
 def dualsimplex(tabl, latex=False, frac=True, decimals=-1, verbose=True):
     tabl = np.array(tabl, dtype="float64")
-    height = tabl.T[0].size
+    #height = tabl.T[0].size
     pivot = float(sys.maxint)
     pivot_i = -1
     pivot_j = -1
 
     #find infeasable rows
     b = tabl.T[tabl[0].size-1][0:-1]
-    c = tabl[height-1][0:-2] #cost/optimisation function
+    c = tabl[-1][0:-2] #cost/optimisation function
     infrows = []
     for i in range(0, b.size):
         if b[i] < 0:
@@ -154,6 +155,7 @@ def dualsimplex(tabl, latex=False, frac=True, decimals=-1, verbose=True):
     if(pivot_j == -1 or pivot_i == -1):
         print "couldnt find pivot element"
         return 
+	print "pivot: (i: "+str(pivot_i)+", j: "+str(pivot_j)+") = "+str(pivot)
     return enterbasis(tabl, pivot_i, pivot_j, latex=latex, frac=frac, decimals=decimals, verbose=verbose)
     
 
@@ -278,11 +280,21 @@ def revsimplex(tabl, basis):
 			non_basis.append(i)
 	A_B, A_N = (A[:,basis], A[:,non_basis])
 	c_B, c_N = (c[basis], c[non_basis])
+	print "TEST"
 	y = np.linalg.solve(A_B,c_B)
 	RES = c_N-(y.T.dot(A_N))
+#	print "c_N:"
+#	print c_N
+#	print "y.T:"
+#	print y.T
+#	print "A_N:"
+#	print A_N.shape
+#	print A_N
+#	print "RES:"
+#	print RES
 	for i in range(0, y.size):
 		print("y_"+str(i+1)+" = "+str(y[i]))
-	print "Reduces cost:"
+	print "Reduced cost:"
 	for i,v in zip(non_basis, RES):
 		print("x_"+str(i)+" = "+str(v))
 	return y, RES
@@ -334,51 +346,56 @@ def printdual(M,E,LC, obj="max"):
 		for j in range (0,len(M[i])):
 			if j == len(M[i])-2 and i == len(M)-1: #when reaching the last row and column do this
 					text += (str(M[i][j])+"y_"+str(counter+j))
-					text = "objfunc: " + text
+					if obj=="max":
+						text = "objfunc: min " + text
+					else:
+						text = "objfunc: max " + text
 					for k in range(0,len(M[i])-1):
 						print lastCon(E,k, obj)
 					break # just so i wont run til end
 			if j == len(M[i])-1:
 				text += addEquality(M,LC,i,j, obj)
 			else :
-
 				if j == len(M[i])-2:
 					text += (str(M[i][j])+"y_"+str(counter+j))
 				else :
-					text += (str(M[i][j])+"y_"+str(counter+j)+"+")
+					text += (str(M[i][j])+"y_"+str(counter+j)+" + ")
 		print text
+	# return A.T, new b, new objfunc
+	#return M[:-1,:-1],M.T[-1,:],M[-1,:-1]  
+	return M
 
 def addEquality(M,LC,i,j, obj):
 	if obj == "max":
 		if LC[i] == "<=0" or LC[i] == "=<0":
-			return " "+ "=<" + " " + str(M[i][j])
+			return " <= " + str(M[i][j])
 		if LC[i] == "=>0" or LC[i] == ">=0":
-			return " "+ "=>" +" " + str(M[i][j])
+			return " >= " + str(M[i][j])
 		if LC[i] == "inR":
-			return " "+ "=" +" " + str(M[i][j])
+			return " = " + str(M[i][j])
 	elif obj == "min":
 		if LC[i] == "<=0" or LC[i] == "=<0":
-			return " "+ "=>" + " " + str(M[i][j])
+			return " >= " + str(M[i][j])
 		if LC[i] == "=>0" or LC[i] == ">=0":
-			return " "+ "=<" +" " + str(M[i][j])
+			return " <= " + str(M[i][j])
 		if LC[i] == "inR":
-			return " "+ "=" +" " + str(M[i][j])
+			return " = " + str(M[i][j])
 
 
 def lastCon(E,i, obj):
 	#print E, " and ", i
 	if obj == "max":
 		if E[i] == "<=" or E[i] == "=<":
-			return "y" + str(i+1) + " => 0"
+			return "y" + str(i+1) + " >= 0"
 		elif E[i] == ">=" or E[i] == "=>":
-			return "y" + str(i+1) + " =< 0"
+			return "y" + str(i+1) + " <= 0"
 		elif E[i] == "=":
 			return "y" + str(i+1) + " in R"
 	elif obj == "min":
 		if E[i] == "<=" or E[i] == "=<":
-			return "y" + str(i+1) + " =< 0"
+			return "y" + str(i+1) + " <= 0"
 		elif E[i] == ">=" or E[i] == "=>":
-			return "y" + str(i+1) + " => 0"
+			return "y" + str(i+1) + " >= 0"
 		elif E[i] == "=":
 			return "y" + str(i+1) + " in R"
 
@@ -467,8 +484,38 @@ def geteigen(A):
 	:A: matrix
 	:returns evals, evecs
 	"""
+	# remember you probably should transpose the eigenvectors array
 	evals, evecs = np.linalg.eig(A)
 	return evals, np.array([ev/max(ev) for ev in evecs.T]).T
+
+def addslackandz(M):
+	""" Adds slack variables and the -z vector
+    """
+	return np.concatenate([M[:,:-1],np.identity(M.shape[0]), M[:,-1].reshape(M.shape[0],-1)], axis=1)
+
+def autosimplex(tabl_orig, verbose=False, frac=True, decimals=-1):
+	""" Returns optimal tnd feasible tableau"""
+	tabl = np.array(tabl_orig)
+	#objval = tabl[-1][-1]
+	b = tabl.T[-1][0:-1]
+	c = tabl[-1][0:-2] #cost/optimisation function
+    #M = tabl[0:-1,0:-2]
+	while(1): 
+		if np.any(0>b): #infeasible -> feasible : PHASE 1
+			if verbose:
+				print "PHASE 1: Infeasible, using dual simplex"
+			tabl = dualsimplex(tabl, verbose=verbose, frac=frac, decimals=decimals )
+		elif np.any(c>0):# -> optimal, PHASE 2
+			if verbose:
+				print "PHASE 2: not optimal, using simplex"
+			tabl = simplex(tabl, verbose=verbose, frac=frac, decimals=decimals)
+		else: break
+		b = tabl.T[-1][0:-1]
+		c = tabl[-1][0:-2] #cost/optimisation function
+	#printvalues(tabl)
+	return tabl
+
+
 
 
 #for row operations, do f.ex.:
@@ -495,3 +542,4 @@ def geteigen(A):
 #T4b[-2,:]=T4b[2,:]+T4b[-2,:]
 #tableau(T4b)
 #use the dualsimplex to find optimal solution
+#
