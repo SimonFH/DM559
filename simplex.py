@@ -668,6 +668,7 @@ def getdualconstraints(eq,lc, obj="max"):
 				dlc.append("<=0")
 			elif e== "=":
 				dlc.append("inR")
+			else: print "constraint "+str(e)+" not correct form! (Use: >=, <=, or =)"
 		elif obj=="min":
 			if e == "<=" or e == "=<":
 				dlc.append("<=0")
@@ -675,6 +676,7 @@ def getdualconstraints(eq,lc, obj="max"):
 				dlc.append(">=0")
 			elif e== "=":
 				dlc.append("inR")
+			else: print "constraint "+str(e)+" not correct form! (Use: >=, <=, or =)"
 	
 	for c in lc:
 		if obj=="max":
@@ -684,15 +686,15 @@ def getdualconstraints(eq,lc, obj="max"):
 				deq.append(">=")
 			elif c == "inR":
 				deq.append("=")
-		elif obj=="min":		
+			else: print "variable constraint "+str(c)+" not correct form! (Use: >=0, <=0 or inR)"
+		elif obj=="min":
 			if c == "<=0" or c == "=<0":
 				deq.append(">=")
 			elif c == ">=0" or c == "=>0":
 				deq.append("<=")
 			elif c == "inR":
 				deq.append("=")
-			else: print "wtf"
-
+			else: print "variable constraint "+str(c)+" not correct form! (Use: >=0, <=0 or inR)"
 	if obj=="max":
 		return deq, dlc, "min"
 	else:
@@ -700,8 +702,11 @@ def getdualconstraints(eq,lc, obj="max"):
 
 
 ## Print the dual of a generic problem
-## Example from Exam 2015, opg 4
-##declar  pprimal variables
+## Example 1,  from Exam 2015, opg 4
+#import simplex as s
+#import numpy as np
+#from sympy import *
+##declare  primal variables
 #x = Symbol('x')
 ## declare other values
 #r = Symbol('r')
@@ -726,7 +731,37 @@ def getdualconstraints(eq,lc, obj="max"):
 #
 #s.dual_eq(pvars, pvals, pconLHS, peq, plc, pobjfun, pobj, pcq=pcq)
 
-def dual_eq(pvars, pvals, pconLHS, peq, plc, pobjfun, pobj, pcq):
+
+## Example 2, from Exam 2014, 5.b
+#import simplex as s
+#import numpy as np
+#from sympy import *
+##declare  primal variables
+#x = Symbol('x')
+#y = Symbol('y')
+## declare other values
+#c = Symbol('c')
+#a = Symbol('a')
+#b = Symbol('b')
+#pvars = np.array([x,y])
+#pvals = np.array([c,a,b])
+#
+## declare primal constraints with RHS = 0
+#pconLHS  = np.array([[a*x-b],[x-y],[x-1]])
+## declare equality for above constraints, same order
+#peq = ["=","<=","<="]
+## declare variable constraints, order same as pvars (x >=0, and y inR)
+#plc = [">=0","inR"]
+## declare objective
+#pobjfun = c*y
+#pobj = "min"
+##declare quantifier for constraint, some order as constraints and peq
+#pcq = ["i","j","ij"]
+#
+#s.dual_eq(pvars, pvals, pconLHS, peq, plc, pobjfun, pobj, pcq=pcq)
+
+
+def dual_eq(pvars, pvals, pconLHS, peq, plc, pobjfun, pobj, pcq, method=2):
 	""" print the dual of a problem
 	:pvars: primary variables, eq. x, y... 
 	:pvals: values, eg.a, b, c, p, ...
@@ -735,6 +770,8 @@ def dual_eq(pvars, pvals, pconLHS, peq, plc, pobjfun, pobj, pcq):
 	:plc: primary variable constraints, eq. ">=0", "<=0" or "inR"
 	:pobjfun: primary objective function
 	:pobj: "min" or "max" objective
+	:pcq: quantifiers for the variables used in the constraints, eg. ["i", "j" "ij"], etc.
+	:method: optional 1 or 2. Choose which method to use to derive objective function.
 	"""
 	alfa = ["A","B","C","D","E","F","G"]
 	dvars = [alfa[i] for i in range(0,len(peq))]
@@ -756,20 +793,91 @@ def dual_eq(pvars, pvals, pconLHS, peq, plc, pobjfun, pobj, pcq):
 	dualconstraints = [str(dc)+" "+str(dq)+" 0" for dc,dq in zip(dconst, deq)]
 	dualvarconst = [str(dv)+" "+dc for dv,dc in zip(dvars,dlc)]
 	
-	# compute the dual objective function
-	print "Dual objective function:"
-	aa = 0
-	for p,dc in zip(pvars, dconst):
-		t = Symbol('t')
-		dd = 0
+
+
+
+
+
+
+
+
+	if method==1:
+		# compute the dual objective function
+		aa =  nobj[0]+pobjfun
+		#print aa
+		bb = 0
+	#	for dv in pvars:
+	#		t = aa.diff(dv)*dv
+	#		bb += t
+		for pv in pvars:
+			bb += aa.diff(pv)*pv
+
+		#d1 = aa.diff(pvars[0])
+		#d2 = aa.diff(pvars[1])	
+	#	d3 = d1+d2
+		#print d3
+		#d4 = d1*pvars[0] + d2*pvars[1]
+		#print d4
+		#print solve(Eq(aa,d4))
+		#print "HERE: ", solve(Eq(aa,bb),dvars)
+		ds = solve(Eq(aa,bb))[0]
+		#print ds
 		for dv in dvars:
-			s = (nobj[0] - (p * dc)).diff(dv)
-			v = solve(Eq(s,dv ))[0][dv]*dv#.diff(pv)
-			#print "dvar: "+str(dv), " = "+str(v)
-			dd += v
-		#print -dd
-		aa += dd
-	dobjfun = -aa
+			if dv in ds:
+				dobjfun = dv-ds[dv]
+		#if pobj=="min":
+			#dobjfun = -dobjfun
+
+		#print aa
+		#print bb
+		#for n in nconst:
+		#	aa += n
+		#print aa
+		#asd =  [aa[0].diff(pv) for pv in pvars]
+		#kk = 0
+		#for dc in asd:
+		#	kk += dc
+
+		#ss = (kk-nobj[0]).diff(pvars[0])
+		#print ss
+		
+##THIS METHOD WORKED FOR SOME PROBLEMS
+	if method==2:
+		aa = 0
+		for p,dc in zip(pvars, dconst):
+			t = Symbol('t')
+			dd = 0
+			for dv in dvars:
+				s = (nobj[0] - (p * dc)).diff(dv)
+				q = np.array([s.diff(k) for k in pvars])
+				#print dv, s, q
+				#if np.any(q == 0) or np.any(q == -1) or np.any(q == 1):
+				if not np.all(q == 0):
+					#print "CONTINUE"
+					continue
+			#	print "p: ",p,"d: ",dv," s: "
+			#	print s
+				#print "FOUND: ",dv
+				v = solve(Eq(s,dv ))[0]
+				#print "v: ",v
+				if v == -1:
+					#print v, "BREAAAAAAAK"
+					v = -dv
+					#continue
+				else:
+					v = v[dv]*dv#.diff(pv)
+				#print v
+				#print "dvar: "+str(dv), " = "+str(v)
+				dd += v
+			#print -dd
+			aa += dd
+		dobjfun = -aa
+
+
+
+
+	#print results
+	print "\nDual objective function:"
 	print dobj+" "+str(dobjfun)
 	print "\nDual constraints:"
 	for dc in dualconstraints:
