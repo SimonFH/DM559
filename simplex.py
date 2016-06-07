@@ -522,6 +522,11 @@ def autosimplex(tabl_orig, verbose=False, frac=True, decimals=-1):
 
 
 ##example of complementary slackness check:
+## problem is a maximization, obj func is bottom row
+#K = np.array([[ 1,  2,  1,  1,  5],
+#       [ 3,  1, -1,  0,  8],
+#       [ 0,  1,  1,  1,  1],
+#       [ 6,  1, -1, -1,  0]])
 #DK, yvec, deq, dlc, obj = s.complslacknesscheck(K,[3,-1,0,2], ["<=","<=","="], ["inR","inR",">=0",">=0"], obj="max")
 ## We then check if the values hold in the dual also, by calling again on the result:
 #s.complsclacknesscheck(DK,yvec,deq,dlc,obj)
@@ -682,10 +687,11 @@ def getdualconstraints(eq,lc, obj="max"):
 		elif obj=="min":		
 			if c == "<=0" or c == "=<0":
 				deq.append(">=")
-        	elif c == ">=0" or c == "=>0":
-        		deq.append("<=")
-        	elif c == "inR":
-        		deq.append("=")
+			elif c == ">=0" or c == "=>0":
+				deq.append("<=")
+			elif c == "inR":
+				deq.append("=")
+			else: print "wtf"
 
 	if obj=="max":
 		return deq, dlc, "min"
@@ -693,6 +699,129 @@ def getdualconstraints(eq,lc, obj="max"):
 		return deq, dlc, "max"
 
 
+## Print the dual of a generic problem
+## Example from Exam 2015, opg 4
+##declar  pprimal variables
+#x = Symbol('x')
+## declare other values
+#r = Symbol('r')
+#b = Symbol('b')
+#d = Symbol('d')
+#pj = Symbol('pj')
+#pi = Symbol('pi')
+#pvars = np.array([x])
+#pvals = np.array([r,b,d,pi,pj])
+#
+## declare primal constraints with RHS = 0
+#pconLHS  = np.array([[x-b],[x-d],[x*pi-x*pj]])
+## declare equality for above constraints
+#peq = ["<=","<=","="]
+## declare variable constraints
+#plc = [">=0"]
+## declare objective
+#pobjfun = r*x
+#pobj = "max"
+##declare quantifier for constraint
+#pcq = ["i","j","j"]
+#
+#s.dual_eq(pvars, pvals, pconLHS, peq, plc, pobjfun, pobj, pcq=pcq)
+
+def dual_eq(pvars, pvals, pconLHS, peq, plc, pobjfun, pobj, pcq):
+	""" print the dual of a problem
+	:pvars: primary variables, eq. x, y... 
+	:pvals: values, eg.a, b, c, p, ...
+	:pconLHS: LHS of the constraints where RHS = 0
+	:peq: signs for the constraints, eq. "<=", ">=" or "=".
+	:plc: primary variable constraints, eq. ">=0", "<=0" or "inR"
+	:pobjfun: primary objective function
+	:pobj: "min" or "max" objective
+	"""
+	alfa = ["A","B","C","D","E","F","G"]
+	dvars = [alfa[i] for i in range(0,len(peq))]
+	#dvars = ["L"+str(i) for i in range(1, len(peq)+1)]
+
+	# if constraint quantifiers are supplied
+	if len(pcq) == len(dvars):
+		dvars = [d+"_"+q for d,q in zip(dvars, pcq)]
+	dvars = [Symbol(d) for d in dvars]
+
+	nconst = [d * c for d,c in zip(dvars,pconLHS)]
+	nobj = 0
+	nobj -= pobjfun
+	for nc in nconst:
+		nobj += nc
+	dconst = [nobj[0].diff(pv) for pv in pvars]
+	deq, dlc, dobj = getdualconstraints(peq,plc,obj=pobj)
+	
+	dualconstraints = [str(dc)+" "+str(dq)+" 0" for dc,dq in zip(dconst, deq)]
+	dualvarconst = [str(dv)+" "+dc for dv,dc in zip(dvars,dlc)]
+	
+	# compute the dual objective function
+	print "Dual objective function:"
+	aa = 0
+	for p,dc in zip(pvars, dconst):
+		t = Symbol('t')
+		dd = 0
+		for dv in dvars:
+			s = (nobj[0] - (p * dc)).diff(dv)
+			v = solve(Eq(s,dv ))[0][dv]*dv#.diff(pv)
+			#print "dvar: "+str(dv), " = "+str(v)
+			dd += v
+		#print -dd
+		aa += dd
+	dobjfun = -aa
+	print dobj+" "+str(dobjfun)
+	print "\nDual constraints:"
+	for dc in dualconstraints:
+		print dc
+	print "\nDual variable constraints:"
+	for dv in dualvarconst:
+		print dv
+
+
+
+
+# The following function is copied from:
+# http://scipy-cookbook.readthedocs.io/items/RankNullspace.html
+def nullspace(A, atol=1e-13, rtol=0):
+    """Compute an approximate basis for the nullspace of A.
+
+    The algorithm used by this function is based on the singular value
+    decomposition of `A`.
+
+    Parameters
+    ----------
+    A : ndarray
+        A should be at most 2-D.  A 1-D array with length k will be treated
+        as a 2-D with shape (1, k)
+    atol : float
+        The absolute tolerance for a zero singular value.  Singular values
+        smaller than `atol` are considered to be zero.
+    rtol : float
+        The relative tolerance.  Singular values less than rtol*smax are
+        considered to be zero, where smax is the largest singular value.
+
+    If both `atol` and `rtol` are positive, the combined tolerance is the
+    maximum of the two; that is::
+        tol = max(atol, rtol * smax)
+    Singular values smaller than `tol` are considered to be zero.
+
+    Return value
+    ------------
+    ns : ndarray
+        If `A` is an array with shape (m, k), then `ns` will be an array
+        with shape (k, n), where n is the estimated dimension of the
+        nullspace of `A`.  The columns of `ns` are a basis for the
+        nullspace; each element in numpy.dot(A, ns) will be approximately
+        zero.
+    """
+
+    A = np.atleast_2d(A)
+    u, s, vh = np.linalg.svd(A)
+    tol = max(atol, rtol * s[0])
+    nnz = (s >= tol).sum()
+    ns = vh[nnz:].conj().T
+    return ns
 
 #for row operations, do f.ex.:
 # A[i,:]=A[i,:]+A[k,:]
