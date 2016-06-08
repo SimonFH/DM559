@@ -603,7 +603,8 @@ def complslacknesscheck(A,xvec,eq,lc, obj="max"):
 	#	print "x_"+str(i)+" = "+str(m-v)
 
 	print "The complementary slackness conditions are:"
-
+	
+	equations =[]
 	#y part
 	for i,row in zip(range(1, M.shape[0]+1), M):
 		text =  "y_"+str(i)+" * ( "
@@ -623,6 +624,8 @@ def complslacknesscheck(A,xvec,eq,lc, obj="max"):
 		text +=" = "+str(res_val)
 		if res_val != 0:
 			text += "  ==> "+"y_"+str(i)+" = 0"
+			equ = Eq(Symbol("y_"+str(i)),0)
+			equations.append(equ)
 		print text
 	print ""
 		
@@ -648,14 +651,17 @@ def complslacknesscheck(A,xvec,eq,lc, obj="max"):
 		text += " <=> "
 		if x != 0:
 			basis.append(i-1)
+			eqL = 0
 			for j,q in zip(range(1,row.size+1),row):
+				eqL += Symbol("y_"+str(j))*q
 				if q < 0:
 					text += str(q)+"y_"+str(j)+" "
 				elif q == 0:
 					text = text
 				else:
 					text += "+"+str(q)+"y_"+str(j)+" "
-			
+			eqL -= v
+			equations.append(eqL)
 			text += "= "+str(v)
 		else:
 			text += "0"
@@ -663,11 +669,23 @@ def complslacknesscheck(A,xvec,eq,lc, obj="max"):
 		print text
 		print ""
 	print "solving the above equations for y's give us:\n"	
-	yvec = np.array(Matrix(A.T[basis]).rref()[0][:,-1]).reshape(1,-1)[0]
+	#print np.array(Matrix(A.T[basis]).rref()[0])
+	sol = solve(equations)
+	# super dirty hacks
+	if (Symbol("y_1") not in sol):
+		sol = sol[0]
+	#print sol
+	yvec = []
+	for i in range(1, len(b)+1):
+		s = Symbol("y_"+str(i))
+		v = sol[s]	
+		print str(s)+": "+str(v)
+		yvec.append(v)
+	#yvec = np.array(Matrix(A.T[basis]).rref()[0][:,-1]).reshape(1,-1)[0]
 	#yvec = np.array(yvec).reshape(1,-1)
 
-	for i,y in zip(range(1,len(yvec)+1),yvec):
-		print "y_"+str(i)+" = "+str(y)
+#	for i,y in zip(range(1,len(yvec)+1),yvec):
+#		print "y_"+str(i)+" = "+str(y)
 
 	deq, dlc, obj = getdualconstraints(eq,lc, obj)
 	return A.T, yvec, deq, dlc, obj 
