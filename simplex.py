@@ -153,11 +153,11 @@ def dualsimplex(tabl, latex=False, frac=True, decimals=-1, verbose=True):
                     pivot_i = i
                     pivot_j = j
     if(pivot_j == -1 or pivot_i == -1):
-        print "couldnt find pivot element"
-        return 
-	print "pivot: (i: "+str(pivot_i)+", j: "+str(pivot_j)+") = "+str(pivot)
-    return enterbasis(tabl, pivot_i, pivot_j, latex=latex, frac=frac, decimals=decimals, verbose=verbose)
-    
+		print "couldnt find pivot element"
+		return
+    else:
+        print "pivot: (i: "+str(pivot_i)+", j: "+str(pivot_j)+") value: "+str(pivot)
+        return enterbasis(tabl, pivot_i, pivot_j, latex=latex, frac=frac, decimals=decimals, verbose=verbose)
 
 
 def enterbasis(tabl, row, col, latex=False, frac=True, decimals=-1, verbose=True):
@@ -172,7 +172,7 @@ def enterbasis(tabl, row, col, latex=False, frac=True, decimals=-1, verbose=True
     tabl = np.array(tabl, dtype="float64")
     if frac:
         tabl = tofrac(tabl)
-    print "x",col," entering basis"
+    print "x",col+1," entering basis"
         
     basisrow = tabl[row]
     #print "basisrow: ", basisrow
@@ -189,9 +189,11 @@ def enterbasis(tabl, row, col, latex=False, frac=True, decimals=-1, verbose=True
             print "R",i,"= R",row,"-",float(tabl[i][col]),"*R",row 
             tabl[i] = tabl[i]-(float(tabl[i][col])*basisrow)            
             if(verbose and frac):
-                tableau(tofrac(tabl))
+				tableau(tofrac(tabl))
             elif(verbose and decimals != -1):
                 tableau(tofloat(tabl, decimals=decimals))
+            elif verbose:
+				tableau(tabl)
             
     if latex:
         print bmatrix(tabl)
@@ -243,6 +245,11 @@ def printvalues(tabl):
 			text += "x_"+str(i+1)+" = 0\n"
 	text += "objval = "+str(-objval)+"\n"
 
+	text += "reduced costs:\n"
+	for i,cc in enumerate(c):
+		text += "x_"+str(i+1)+" = "+str(cc)+"\n"
+	text += "shadow price/ dual variables:\n"
+
 	j=1
 	for i in range(n, M[0].size):
 		text += "y_"+str(j)+" = "+str(-c[i])+"\n"
@@ -264,6 +271,7 @@ def variablesinbasis(A):
 	return inbasis
 
 
+# Remember to call addslackandz on the matrix before calling this function
 def revsimplex(tabl, basis):
 	""" Returns reduced costs and dual variable values only
 	:tabl: tableau
@@ -278,7 +286,6 @@ def revsimplex(tabl, basis):
 			non_basis.append(i)
 	A_B, A_N = (A[:,basis], A[:,non_basis])
 	c_B, c_N = (c[basis], c[non_basis])
-	print "TEST"
 	y = np.linalg.solve(A_B,c_B)
 	RES = c_N-(y.T.dot(A_N))
 #	print "c_N:"
@@ -491,7 +498,8 @@ def addslackandz(M):
     """
 	return np.concatenate([M[:,:-1],np.identity(M.shape[0]), M[:,-1].reshape(M.shape[0],-1)], axis=1)
 
-def autosimplex(tabl_orig, verbose=False, frac=True, decimals=-1):
+#if it looks weird, use frac=False
+def autosimplex(tabl_orig, verbose=True, frac=True, decimals=-1):
 	""" Returns optimal tnd feasible tableau"""
 	tabl = np.array(tabl_orig)
 	#objval = tabl[-1][-1]
@@ -514,6 +522,11 @@ def autosimplex(tabl_orig, verbose=False, frac=True, decimals=-1):
 		b = tabl.T[-1][0:-1]
 		c = tabl[-1][0:-2] #cost/optimisation function
 	#printvalues(tabl)
+	if verbose:
+		print "\nFinal tableau:\n"
+		tableau(tabl)
+		print "\nPrinting values:\n"
+		printvalues(tabl)
 	return tabl
 
 
@@ -532,6 +545,7 @@ def autosimplex(tabl_orig, verbose=False, frac=True, decimals=-1):
 #s.complsclacknesscheck(DK,yvec,deq,dlc,obj)
 ## in this case the dual is infeasible,indicating that the primal is unbounded.
 
+# if you check for optimality, you should probably run this on the dual
 def complslacknesscheck(A,xvec,eq,lc, obj="max"):
 	""" Check if given x-values makes solution feasible
 	:A: problem without slackvariables
@@ -591,7 +605,7 @@ def complslacknesscheck(A,xvec,eq,lc, obj="max"):
 	print "The complementary slackness conditions are:"
 
 	#y part
-	for i,row in zip(range(1, DM.shape[0]+1), DM):
+	for i,row in zip(range(1, M.shape[0]+1), M):
 		text =  "y_"+str(i)+" * ( "
 		res = ""
 		res_val = 0
@@ -603,10 +617,11 @@ def complslacknesscheck(A,xvec,eq,lc, obj="max"):
 			if v!=0 and x!=0:
 				res_val += v*x
 				
-		
+		res_val -= b[i-1] 
+		text += str(-b[i-1])
 		text += ") = 0"
 		text +=" = "+str(res_val)
-		if res_val == 0:
+		if res_val != 0:
 			text += "  ==> "+"y_"+str(i)+" = 0"
 		print text
 	print ""
@@ -647,6 +662,7 @@ def complslacknesscheck(A,xvec,eq,lc, obj="max"):
 		
 		print text
 		print ""
+	print "solving the above equations for y's give us:\n"	
 	yvec = np.array(Matrix(A.T[basis]).rref()[0][:,-1]).reshape(1,-1)[0]
 	#yvec = np.array(yvec).reshape(1,-1)
 
