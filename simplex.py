@@ -1,7 +1,7 @@
 import numpy as np
 from sympy import *
 import sys
-
+import math as math
 from fractions import Fraction as f
 np.set_printoptions(precision=3,suppress=True)
 
@@ -958,6 +958,41 @@ def addconstraint(tabl, const):
 	print TTT
 	return TTT
 	#print TT
+
+
+## input optimal tableau
+def branch(tabl):
+	objval = tabl[-1][-1]
+	b = tabl.T[-1][0:-1]
+	c = tabl[-1][0:-2] #cost/optimisation function
+	M = tabl[0:-1,0:-2]
+	MT = M.T
+	n = M[0].size-MT[0].size
+
+#	basis = variablesinbasis(M)
+	max_fv = 0
+	x = 0
+	xv = 0
+	for i in range(0,n+1):
+		t = list(MT[i])
+		#if column/variable in basis, print corresponding b value
+		if t.count(1) == 1 and t.count(0) == len(t)-1:
+			j = t.index(1)
+			v = b[j]
+			#text += "x_"+str(i+1)+" = "+str(b[j])+"\n"
+			fv = min(v-floor(v),1-v+floor(v))
+			print "x_"+str(i+1)+" -> "+str(fv)
+			if (fv > max_fv):
+				max_fv = fv				
+				x = i+1
+				xv = v
+	xstr = "x_"+str(x)
+	print "--------------------"
+	print xstr+" with value: "+str(xv)+" has largest fractional value: "+str(max_fv)
+	print "so we branch on "+xstr+":"
+	print "\n"+xstr+" <= "+str(floor(v))+"  v  " +xstr+" >= "+str(math.ceil(v))
+
+	
 
 	
 
