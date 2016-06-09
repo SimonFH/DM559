@@ -242,22 +242,23 @@ def printvalues(tabl):
 	else:
 		text += "optimal.\n"
 
-	for i in range(0,n+1):
+	for i in range(0,len(c)):
 		t = list(MT[i])
 		#if column/variable in basis, print corresponding b value
 		if t.count(1) == 1 and t.count(0) == len(t)-1:
 			j = t.index(1)
-			text += "x_"+str(i+1)+" = "+str(b[j])+"\n"
+			text += "x_"+str(i+1)+" = "+str(b[j])+", (shadow price of dual)\n"
 		else:
-			text += "x_"+str(i+1)+" = 0\n"
+			text += "x_"+str(i+1)+" = 0, not in basis\n"
 	text += "objval = "+str(-objval)+"\n"
 
 	text += "reduced costs:\n"
 	for i,cc in enumerate(c):
 		text += "x_"+str(i+1)+" = "+str(cc)+"\n"
-	text += "shadow price/ dual variables:\n"
+	text += "dual variables (shadow prices):\n"
 
 	j=1
+	#for i in range(0,len(c)):
 	for i in range(n, M[0].size):
 		text += "y_"+str(j)+" = "+str(-c[i])+"\n"
 		j += 1
@@ -293,7 +294,10 @@ def revsimplex(tabl, basis):
 			non_basis.append(i)
 	A_B, A_N = (A[:,basis], A[:,non_basis])
 	c_B, c_N = (c[basis], c[non_basis])
+	
+	# y = A_B.inv . c_B   (same as solve)
 	y = np.linalg.solve(A_B,c_B)
+	
 	RES = c_N-(y.T.dot(A_N))
 #	print "c_N:"
 #	print c_N
@@ -304,11 +308,12 @@ def revsimplex(tabl, basis):
 #	print A_N
 #	print "RES:"
 #	print RES
+	print "dual variables (shadow prices):"
 	for i in range(0, y.size):
 		print("y_"+str(i+1)+" = "+str(y[i]))
 	print "Reduced cost:"
 	for i,v in zip(non_basis, RES):
-		print("x_"+str(i)+" = "+str(v))
+		print("x_"+str(i+1)+" = "+str(v))
 	return y, RES
 
 
@@ -955,12 +960,18 @@ def addconstraint(tabl, const):
 	T = np.vstack([M, const, c])
 	TT = np.append(np.zeros(len(b)),[1,0]).reshape(-1,1)
 	TTT = np.hstack([T[:,:-2],TT, T[:,-2:]])
-	print TTT
+	#print TTT
+	print "\n##############"
+	print "WARNING: Make sure the new tableau is in canonical standard form, ie. check if you can find an identity matrix!!!\nIf not, fix this by adding/subtracting rows to the new row."
+	print "##############\n"
+	tableau(TTT)
 	return TTT
 	#print TT
 
 
 ## input optimal tableau
+# we assume this is a maximization problem
+# if we have a minimization, mulitply the return values by (-1)
 def branch(tabl):
 	objval = tabl[-1][-1]
 	b = tabl.T[-1][0:-1]
@@ -991,6 +1002,15 @@ def branch(tabl):
 	print xstr+" with value: "+str(xv)+" has largest fractional value: "+str(max_fv)
 	print "so we branch on "+xstr+":"
 	print "\n"+xstr+" <= "+str(floor(v))+"  v  " +xstr+" >= "+str(math.ceil(v))
+
+	c1 = np.zeros(tabl[0].size)
+	c2 = np.zeros(tabl[0].size)
+	c1[x-1]=1
+	c1[-1]=floor(v)
+	c2[x-1]=1
+	c2[-1]=math.ceil(v)
+	c2 = c2*(-1)
+	return np.array([c1,c2])
 
 	
 
@@ -1061,3 +1081,18 @@ def nullspace(A, atol=1e-13, rtol=0):
 #tableau(T4b)
 #use simplex to find optimal solution
 #tableau(autosimplex(T4b))
+
+
+
+
+##Sensitivity analysis
+## use LP grapher.
+## Example:
+# max 30x + 50y
+# st
+## 2x+3y<=11
+# 2x+3y<=10  # replace this with the above and see the objective value change from 160 to 170, also notice shadow price/dual variabel change.
+# x+2y<=6
+# x+y<=5
+# x<=4
+# y<=3
