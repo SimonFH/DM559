@@ -930,7 +930,36 @@ def dual_eq(pvars, pvals, pconLHS, peq, plc, pobjfun, pobj, pcq, method=2):
 		print dv
 
 
+## Give final tableau
+def gomorycuts(tabl, inittabl=None):
+#	For all constraints we make a Gomory cut by taking the values of the coefficient and subtracting the floored coefficient.
+#	In the optimal input tableau, you have fractional values and constraints of the = type.
+#	The constraints for the Gomory cut will be of the type >= (for maximization problem).
+#	If you must use this in tableau form, you can just multiply both sides by -1 to flip it to <=
 
+	M = np.array(tabl[:-1,:])
+	for i,R in enumerate(M):
+		M[i] = [v-floor(v) for v in R]
+
+	print M
+	print "constraints of type \">=\". If you have a maximization, put it to standard form by multiplying both sides with (-1) to get \"<=\" type constraint.\nAdd constraint to initial tableau and re-solve."
+	return M
+
+## remember only initial tableau, if using Gomory cuts
+## Also, if Gomory cut, remeber to multiply by (-1)
+def addconstraint(tabl, const):
+	#objval = A[-1][-1]
+	b = tabl.T[-1][0:-1] #primal b
+	c = tabl[-1][0:] #cost/optimisation function
+	M = tabl[0:-1,:] # primal coefficient matrix
+	T = np.vstack([M, const, c])
+	TT = np.append(np.zeros(len(b)),[1,0]).reshape(-1,1)
+	TTT = np.hstack([T[:,:-2],TT, T[:,-2:]])
+	print TTT
+	return TTT
+	#print TT
+
+	
 
 # The following function is copied from:
 # http://scipy-cookbook.readthedocs.io/items/RankNullspace.html
