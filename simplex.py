@@ -172,11 +172,17 @@ def enterbasis(tabl, row, col, latex=False, frac=True, decimals=-1, verbose=True
     tabl = np.array(tabl, dtype="float64")
     if frac:
         tabl = tofrac(tabl)
-    print "x",col+1," entering basis"
+    print "x_"+str(col+1)+" entering basis"
+
+    bas = variablesinbasis(tabl[:-1,:-2])
+    r = tabl[row]
+    for b in bas:
+        if r[b]==1:
+            print "x_"+str(b+1)+" leaving basis"
         
     basisrow = tabl[row]
     #print "basisrow: ", basisrow
-    print "R",row,"= R",row,"/",basisrow[col]
+    print "R"+str(row)+" = R",row,"/",basisrow[col]
     tabl[row] = basisrow = basisrow/basisrow[col]    
     #print "basisrow now: ", tabl[row]
     height = tabl.T[0].size
@@ -186,14 +192,15 @@ def enterbasis(tabl, row, col, latex=False, frac=True, decimals=-1, verbose=True
            # if frac:
            #     print "R",i,"= R",row,"-",f(str(float(tabl[i][col]))),"*R",row 
            # else:
-            print "R",i,"= R",row,"-",float(tabl[i][col]),"*R",row 
+            print "R"+str(i)+" = R"+str(row)+" - "+str(float(tabl[i][col]))+" * R"+str(row) 
             tabl[i] = tabl[i]-(float(tabl[i][col])*basisrow)            
-            if(verbose and frac):
-				tableau(tofrac(tabl))
-            elif(verbose and decimals != -1):
-                tableau(tofloat(tabl, decimals=decimals))
-            elif verbose:
-				tableau(tabl)
+
+    if(verbose and frac):
+        tableau(tofrac(tabl))
+    elif(verbose and decimals != -1):
+        tableau(tofloat(tabl, decimals=decimals))
+    elif verbose:
+        tableau(tabl)
             
     if latex:
         print bmatrix(tabl)
