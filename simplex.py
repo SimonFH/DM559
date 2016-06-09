@@ -375,7 +375,8 @@ def printdual(M,E,LC, obj="max"):
 		print text
 	# return A.T, new b, new objfunc
 	#return M[:-1,:-1],M.T[-1,:],M[-1,:-1]  
-	return M
+	deq, dlc, dobj = getdualconstraints(E,LC,obj)
+	return M, deq, dlc, dobj
 
 def addEquality(M,LC,i,j, obj):
 	if obj == "max":
