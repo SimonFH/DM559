@@ -606,6 +606,7 @@ def complslacknesscheck(A,xvec,eq,lc, obj="max"):
 				print "x_"+str(i)+": ",x,con, " OK"
 	print ""
 		
+	print "objective value: "+str(c.dot(xvec))+"\n"
 
 	#for i,m,v in zip(np.array(range(1, M1.size+1)), M1,b):
 	#	print "x_"+str(i)+" = "+str(m-v)
