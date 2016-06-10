@@ -247,7 +247,7 @@ def printvalues(tabl):
 		#if column/variable in basis, print corresponding b value
 		if t.count(1) == 1 and t.count(0) == len(t)-1:
 			j = t.index(1)
-			text += "x_"+str(i+1)+" = "+str(b[j])+", (shadow price of dual)\n"
+			text += "x_"+str(i+1)+" = "+str(b[j])+", (also shadow price of dual)\n"
 		else:
 			text += "x_"+str(i+1)+" = 0, not in basis\n"
 	text += "objval = "+str(-objval)+"\n"
